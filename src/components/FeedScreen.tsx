@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 import { RefreshCw, Inbox } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -15,19 +22,12 @@ interface Scan {
 export function FeedScreen() {
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
 
   const fetchScans = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    
     setLoading(true);
     const { data, error } = await supabase
       .from('scans')
       .select('*')
-      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -39,11 +39,9 @@ export function FeedScreen() {
   };
 
   useEffect(() => {
-    if (!user) return;
-    
     fetchScans();
 
-    // Subscribe to realtime updates - filter by user_id
+    // Subscribe to realtime updates for all scans
     const channel = supabase
       .channel('scans-realtime')
       .on(
@@ -51,8 +49,7 @@ export function FeedScreen() {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'scans',
-          filter: `user_id=eq.${user.id}`
+          table: 'scans'
         },
         (payload) => {
           setScans((current) => [payload.new as Scan, ...current]);
@@ -63,7 +60,7 @@ export function FeedScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, []);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-80px)]">
@@ -94,20 +91,34 @@ export function FeedScreen() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {scans.map((scan) => (
-              <div 
-                key={scan.id}
-                className="bg-card rounded-xl p-4 border border-border shadow-sm"
-              >
-                <p className="font-mono text-lg font-medium text-foreground">
-                  {scan.code}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {format(new Date(scan.created_at), 'yyyy-MM-dd HH:mm')}
-                </p>
-              </div>
-            ))}
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Scan Item</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {scans.map((scan) => (
+                  <TableRow key={scan.id}>
+                    <TableCell className="font-mono text-sm">
+                      {scan.user_id || 'Unknown'}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-mono text-lg font-medium text-foreground">
+                          {scan.code}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {format(new Date(scan.created_at), 'yyyy-MM-dd HH:mm')}
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
