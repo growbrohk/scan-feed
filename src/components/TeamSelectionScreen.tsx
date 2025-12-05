@@ -21,53 +21,67 @@ export function TeamSelectionScreen({ onTeamSelected }: { onTeamSelected: () => 
 
   // Fetch current team data with usernames
   const fetchTeamData = async () => {
-    const { data, error } = await supabase
-      .from('teams')
-      .select(`
-        team,
-        user_id,
-        profiles:user_id (
-          username
-        )
-      `);
+    try {
+      // Fetch teams
+      const { data: teamsData, error: teamsError } = await supabase
+        .from('teams')
+        .select('team, user_id');
 
-    if (error) {
-      console.error('Error fetching teams:', error);
-      return;
-    }
-
-    // Count members per team and store member info
-    const counts: Record<number, number> = {};
-    const members: Record<number, TeamMember[]> = {};
-    
-    // Initialize all teams
-    for (let i = 1; i <= 10; i++) {
-      counts[i] = 0;
-      members[i] = [];
-    }
-    
-    // Process team data
-    data?.forEach((item: any) => {
-      const teamNum = item.team;
-      counts[teamNum] = (counts[teamNum] || 0) + 1;
-      
-      // Add member info
-      if (item.profiles) {
-        members[teamNum].push({
-          user_id: item.user_id,
-          username: item.profiles.username || 'Unknown',
-        });
-      } else {
-        members[teamNum].push({
-          user_id: item.user_id,
-          username: 'Unknown',
-        });
+      if (teamsError) {
+        console.error('Error fetching teams:', teamsError);
+        setLoading(false);
+        return;
       }
-    });
 
-    setTeamCounts(counts);
-    setTeamMembers(members);
-    setLoading(false);
+      // Get all unique user IDs
+      const userIds = teamsData?.map(t => t.user_id).filter(Boolean) || [];
+      
+      // Fetch profiles for those users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      // Create a map of user_id to username
+      const usernameMap = new Map<string, string>();
+      profilesData?.forEach(profile => {
+        usernameMap.set(profile.id, profile.username);
+      });
+
+      // Count members per team and store member info
+      const counts: Record<number, number> = {};
+      const members: Record<number, TeamMember[]> = {};
+      
+      // Initialize all teams
+      for (let i = 1; i <= 10; i++) {
+        counts[i] = 0;
+        members[i] = [];
+      }
+      
+      // Process team data
+      teamsData?.forEach((item) => {
+        const teamNum = item.team;
+        counts[teamNum] = (counts[teamNum] || 0) + 1;
+        
+        // Add member info
+        const username = usernameMap.get(item.user_id) || 'Unknown';
+        members[teamNum].push({
+          user_id: item.user_id,
+          username: username,
+        });
+      });
+
+      setTeamCounts(counts);
+      setTeamMembers(members);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error in fetchTeamData:', error);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -107,6 +121,8 @@ export function TeamSelectionScreen({ onTeamSelected }: { onTeamSelected: () => 
         console.error('Update error:', error);
       } else {
         toast.success(`Joined Team ${selectedTeam}!`);
+        // Refresh team data after update
+        await fetchTeamData();
         onTeamSelected();
       }
     } else {
@@ -127,6 +143,8 @@ export function TeamSelectionScreen({ onTeamSelected }: { onTeamSelected: () => 
         }
       } else {
         toast.success(`Joined Team ${selectedTeam}!`);
+        // Refresh team data after insert
+        await fetchTeamData();
         onTeamSelected();
       }
     }
@@ -194,7 +212,7 @@ export function TeamSelectionScreen({ onTeamSelected }: { onTeamSelected: () => 
                   {/* Show usernames */}
                   {members.length > 0 && (
                     <div className="w-full mt-1 space-y-1">
-                      {members.map((member, idx) => (
+                      {members.map((member) => (
                         <div
                           key={member.user_id}
                           className="text-xs text-muted-foreground truncate"
