@@ -6,40 +6,72 @@ import { toast } from 'sonner';
 import { Users, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+interface TeamMember {
+  user_id: string;
+  username: string;
+}
+
 export function TeamSelectionScreen({ onTeamSelected }: { onTeamSelected: () => void }) {
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
   const [teamCounts, setTeamCounts] = useState<Record<number, number>>({});
+  const [teamMembers, setTeamMembers] = useState<Record<number, TeamMember[]>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
 
-  // Fetch current team counts
-  const fetchTeamCounts = async () => {
+  // Fetch current team data with usernames
+  const fetchTeamData = async () => {
     const { data, error } = await supabase
       .from('teams')
-      .select('team');
+      .select(`
+        team,
+        user_id,
+        profiles:user_id (
+          username
+        )
+      `);
 
     if (error) {
       console.error('Error fetching teams:', error);
       return;
     }
 
-    // Count members per team
+    // Count members per team and store member info
     const counts: Record<number, number> = {};
+    const members: Record<number, TeamMember[]> = {};
+    
+    // Initialize all teams
     for (let i = 1; i <= 10; i++) {
       counts[i] = 0;
+      members[i] = [];
     }
     
-    data?.forEach((item) => {
-      counts[item.team] = (counts[item.team] || 0) + 1;
+    // Process team data
+    data?.forEach((item: any) => {
+      const teamNum = item.team;
+      counts[teamNum] = (counts[teamNum] || 0) + 1;
+      
+      // Add member info
+      if (item.profiles) {
+        members[teamNum].push({
+          user_id: item.user_id,
+          username: item.profiles.username || 'Unknown',
+        });
+      } else {
+        members[teamNum].push({
+          user_id: item.user_id,
+          username: 'Unknown',
+        });
+      }
     });
 
     setTeamCounts(counts);
+    setTeamMembers(members);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchTeamCounts();
+    fetchTeamData();
   }, []);
 
   const handleConfirm = async () => {
@@ -126,6 +158,7 @@ export function TeamSelectionScreen({ onTeamSelected }: { onTeamSelected: () => 
         <div className="grid grid-cols-5 gap-3">
           {Array.from({ length: 10 }, (_, i) => i + 1).map((teamNum) => {
             const count = teamCounts[teamNum] || 0;
+            const members = teamMembers[teamNum] || [];
             const isFull = count >= 2;
             const isSelected = selectedTeam === teamNum;
             const isAvailable = !isFull;
@@ -157,6 +190,22 @@ export function TeamSelectionScreen({ onTeamSelected }: { onTeamSelected: () => 
                     <Users className="w-3 h-3" />
                     <span>{count}/2</span>
                   </div>
+                  
+                  {/* Show usernames */}
+                  {members.length > 0 && (
+                    <div className="w-full mt-1 space-y-1">
+                      {members.map((member, idx) => (
+                        <div
+                          key={member.user_id}
+                          className="text-xs text-muted-foreground truncate"
+                          title={member.username}
+                        >
+                          {member.username}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
                   {isSelected && (
                     <Check className="w-5 h-5 text-primary absolute top-2 right-2" />
                   )}
