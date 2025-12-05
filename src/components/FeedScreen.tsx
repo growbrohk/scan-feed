@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Inbox } from 'lucide-react';
 import { format } from 'date-fns';
@@ -8,17 +9,25 @@ interface Scan {
   id: number;
   code: number;
   created_at: string;
+  user_id: string | null;
 }
 
 export function FeedScreen() {
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const fetchScans = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     const { data, error } = await supabase
       .from('scans')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -30,9 +39,11 @@ export function FeedScreen() {
   };
 
   useEffect(() => {
+    if (!user) return;
+    
     fetchScans();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates - filter by user_id
     const channel = supabase
       .channel('scans-realtime')
       .on(
@@ -40,7 +51,8 @@ export function FeedScreen() {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'scans'
+          table: 'scans',
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
           setScans((current) => [payload.new as Scan, ...current]);
@@ -51,7 +63,7 @@ export function FeedScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user]);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-80px)]">
