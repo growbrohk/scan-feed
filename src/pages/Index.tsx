@@ -13,6 +13,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<'scan' | 'feed'>('scan');
   const [hasTeam, setHasTeam] = useState<boolean | null>(null);
   const [checkingTeam, setCheckingTeam] = useState(true);
+  const [showTeamSelection, setShowTeamSelection] = useState(false);
   const { user, loading, signOut } = useAuth();
 
   // Check if user has a team
@@ -40,6 +41,11 @@ const Index = () => {
     checkTeam();
   }, [user]);
 
+  const handleTeamSelected = () => {
+    setHasTeam(true);
+    setShowTeamSelection(false);
+  };
+
   if (loading || checkingTeam) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -52,8 +58,8 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  // Show team selection if user doesn't have a team
-  if (hasTeam === false) {
+  // Show team selection if user doesn't have a team or if explicitly requested
+  if (hasTeam === false || showTeamSelection) {
     return (
       <div className="min-h-screen bg-background">
         <div className="absolute top-4 right-4 z-10">
@@ -62,7 +68,7 @@ const Index = () => {
           </Button>
         </div>
         <TeamSelectionScreen 
-          onTeamSelected={() => setHasTeam(true)} 
+          onTeamSelected={handleTeamSelected}
         />
       </div>
     );
@@ -75,7 +81,11 @@ const Index = () => {
           <LogOut className="w-5 h-5" />
         </Button>
       </div>
-      {activeTab === 'scan' ? <ScanScreen /> : <FeedScreen />}
+      {activeTab === 'scan' ? (
+        <ScanScreen onShowTeamSelection={() => setShowTeamSelection(true)} />
+      ) : (
+        <FeedScreen />
+      )}
       <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );

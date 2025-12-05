@@ -4,11 +4,15 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { ScanLine, Camera, X } from 'lucide-react';
+import { ScanLine, Camera, X, Users } from 'lucide-react';
 
 const CODE_REGEX = /^[0-9]{7}$/;
 
-export function ScanScreen() {
+interface ScanScreenProps {
+  onShowTeamSelection?: () => void;
+}
+
+export function ScanScreen({ onShowTeamSelection }: ScanScreenProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { user } = useAuth();
@@ -56,7 +60,20 @@ export function ScanScreen() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] p-6">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] p-6 relative">
+      {/* Team icon button - positioned at top left */}
+      {onShowTeamSelection && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onShowTeamSelection}
+          className="absolute top-0 left-4 z-10"
+          title="Change Team"
+        >
+          <Users className="w-5 h-5" />
+        </Button>
+      )}
+
       {!isScanning ? (
         <div className="flex flex-col items-center gap-6 text-center">
           <div className="w-24 h-24 rounded-full bg-accent flex items-center justify-center">
