@@ -18,6 +18,7 @@ interface Scan {
   created_at: string;
   user_id: string | null;
   username: string | null;
+  team: number | null;
 }
 
 export function FeedScreen() {
@@ -53,7 +54,7 @@ export function FeedScreen() {
           table: 'scans'
         },
         (payload) => {
-          // When a new scan is inserted, refetch to get the username
+          // When a new scan is inserted, refetch to get the username and team
           fetchScans();
         }
       )
@@ -97,8 +98,9 @@ export function FeedScreen() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Scan Item</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Treasure</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -106,6 +108,13 @@ export function FeedScreen() {
                   <TableRow key={scan.id}>
                     <TableCell className="font-medium">
                       {scan.username || 'Unknown user'}
+                    </TableCell>
+                    <TableCell>
+                      {scan.team ? (
+                        <span className="font-semibold text-primary">Team {scan.team}</span>
+                      ) : (
+                        <span className="text-muted-foreground">No team</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div>
