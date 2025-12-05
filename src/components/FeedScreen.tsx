@@ -17,6 +17,7 @@ interface Scan {
   code: number;
   created_at: string;
   user_id: string | null;
+  username: string | null;
 }
 
 export function FeedScreen() {
@@ -26,7 +27,7 @@ export function FeedScreen() {
   const fetchScans = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('scans')
+      .from('scan_with_profile')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -52,7 +53,8 @@ export function FeedScreen() {
           table: 'scans'
         },
         (payload) => {
-          setScans((current) => [payload.new as Scan, ...current]);
+          // When a new scan is inserted, refetch to get the username
+          fetchScans();
         }
       )
       .subscribe();
@@ -102,8 +104,8 @@ export function FeedScreen() {
               <TableBody>
                 {scans.map((scan) => (
                   <TableRow key={scan.id}>
-                    <TableCell className="font-mono text-sm">
-                      {scan.user_id || 'Unknown'}
+                    <TableCell className="font-medium">
+                      {scan.username || 'Unknown user'}
                     </TableCell>
                     <TableCell>
                       <div>

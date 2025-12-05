@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -43,14 +43,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, username: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
+    
+    // 1) Create auth user
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: redirectUrl }
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: { username }, // Store in user_metadata
+      },
     });
-    return { error };
+
+    if (error) {
+      return { error };
+    }
+
+    const user = data.user;
+    if (!user) {
+      return { error: new Error('No user returned from signUp') };
+    }
+
+    // 2) Create profile row linked to auth.users(id)
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        username,
+      });
+
+    if (profileError) {
+      console.error('Profile insert error', profileError);
+      return { error: profileError };
+    }
+
+    return { error: null };
   };
 
   const signOut = async () => {

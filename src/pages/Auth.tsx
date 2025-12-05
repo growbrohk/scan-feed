@@ -11,6 +11,7 @@ export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -23,10 +24,15 @@ export default function Auth() {
       return;
     }
 
+    if (isSignUp && !username.trim()) {
+      toast.error('Please enter a username');
+      return;
+    }
+
     setIsLoading(true);
 
     const { error } = isSignUp 
-      ? await signUp(email, password)
+      ? await signUp(email, password, username)
       : await signIn(email, password);
 
     if (error) {
@@ -34,6 +40,8 @@ export default function Auth() {
         toast.error('This email is already registered. Please sign in.');
       } else if (error.message.includes('Invalid login credentials')) {
         toast.error('Invalid email or password.');
+      } else if (error.message.includes('duplicate key') || error.message.includes('username')) {
+        toast.error('Username already taken. Please choose another.');
       } else {
         toast.error(error.message);
       }
@@ -63,6 +71,20 @@ export default function Auth() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="your nickname"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -102,7 +124,10 @@ export default function Auth() {
         <div className="text-center">
           <button
             type="button"
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setUsername(''); // Clear username when switching
+            }}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             disabled={isLoading}
           >
